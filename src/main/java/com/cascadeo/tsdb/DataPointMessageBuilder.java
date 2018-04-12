@@ -119,9 +119,21 @@ public class DataPointMessageBuilder {
         dataPointMsg.put("source", collectorName);
 
         // HEADER DATA        
-        Map<String, Object> headerData = new HashMap<String, Object>();
-        headerData.put("messageVersion", messageVersion);
-        headerData.put("messageType", messageType);
+        // Map<String, Object> headerData = new HashMap<String, Object>();
+        // headerData.put("messageVersion", messageVersion);
+        // headerData.put("messageType", messageType);        
+
+        // // ISO 8601 Date Formatter
+        // TimeZone utcTZ = TimeZone.getTimeZone("UTC");
+        // DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm.SSS'Z'");
+        // dateFormatter.setTimeZone(utcTZ);
+
+        // long timestamp_ms = timestamp * 1000;
+        // headerData.put("indexTimestamp", dateFormatter.format(timestamp_ms));
+
+        // long sentTime = (new Date()).getTime();
+        // headerData.put("sentTimestamp", dateFormatter.format(sentTime));
+        // dataPointMsg.put("header", headerData);
 
         // ISO 8601 Date Formatter
         TimeZone utcTZ = TimeZone.getTimeZone("UTC");
@@ -129,14 +141,15 @@ public class DataPointMessageBuilder {
         dateFormatter.setTimeZone(utcTZ);
 
         long timestamp_ms = timestamp * 1000;
-        headerData.put("indexTimestamp", dateFormatter.format(timestamp_ms));
-
         long sentTime = (new Date()).getTime();
-        headerData.put("sentTimestamp", dateFormatter.format(sentTime));
-        dataPointMsg.put("header", headerData);
+
+        dataPointMsg.put("_messageVersion", messageVersion);
+        dataPointMsg.put("_messageType", messageType);
+        dataPointMsg.put("_indexTimestamp", dateFormatter.format(timestamp_ms));
+        dataPointMsg.put("_sentTimestamp", dateFormatter.format(sentTime));        
 
         if (messageType == "zenoss_ts_data") {
-            float forwarderLagSeconds = (sentTime - timestamp_ms) / 1000;
+            float forwarderLagSeconds = (float)(sentTime - timestamp_ms) / 1000;
             dataPointMsg.put("forwarderLagSeconds", forwarderLagSeconds);
         }
 
