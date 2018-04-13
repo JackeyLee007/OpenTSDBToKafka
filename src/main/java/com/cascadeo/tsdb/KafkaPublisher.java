@@ -54,7 +54,7 @@ public class KafkaPublisher extends RTPublisher {
         producer = new KafkaProducer<String, String>(kafkaConfigProps);
 
         // Message builder
-        dataPointMessageBuilder = new DataPointMessageBuilder("zenperfdataforwarder", "zenoss_ts_data", "2016020200");
+        dataPointMessageBuilder = new DataPointMessageBuilder("zenperfdataforwarder", "zenoss_ts_data", "2018041200");
         // Show debugging data
         dataPointMessageBuilder.setShowOpenTSDBData(true);
     }
@@ -65,7 +65,7 @@ public class KafkaPublisher extends RTPublisher {
     }
 
     public String version() {
-        return "0.0.1";
+        return "0.0.2";
     }
 
     public void collectStats(final StatsCollector collector) {
