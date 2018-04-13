@@ -29,6 +29,7 @@ tsd.rtpublisher.enable = True
 tsd.rtpublisher.plugin = com.cascadeo.tsdb.KafkaPublisher
 tsd.plugin.kafkapublisher.bootstrapservers = kafka1:9092,kafka2:9092,kafka3:9092
 tsd.plugin.kafkapublisher.topic = kafka_topic
+tsd.plugin.kafkapublisher.with_keys_only = True
 ```
   
 
