@@ -56,7 +56,16 @@ public class KafkaPublisher extends RTPublisher {
         // Message builder
         dataPointMessageBuilder = new DataPointMessageBuilder("zenperfdataforwarder", "zenoss_ts_data", "2018041200");
         // Show debugging data
-        dataPointMessageBuilder.setShowOpenTSDBData(true);
+
+        Boolean showOpenTSDBData = false;
+        try {
+            showOpenTSDBData = tsdb.getConfig().getBoolean("tsd.plugin.kafkapublisher.show_opentsdb_data");
+        } catch (NullPointerException nullEx) {
+            LOG.debug("showOpenTSDB is not defined.");
+        } finally {
+            dataPointMessageBuilder.setShowOpenTSDBData(showOpenTSDBData);
+        }
+
     }
 
     public Deferred<Object> shutdown() {

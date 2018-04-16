@@ -60,7 +60,12 @@ public class DataPointMessageBuilder {
             }
             debugData.put("tsuid", tsuidBuilder.toString());
 
-            dataPointMsg.put("opentsdb_data", debugData);
+            try {
+                String debugDataStr = new ObjectMapper().writeValueAsString(debugData);
+                LOG.info("OpenTSDB Data is: " + debugDataStr);
+            } catch (JsonProcessingException jsonEx) {
+                LOG.error("Error converting OpenTSDBData: " + jsonEx.getMessage());
+            }
         }
 
         // ZENOSS TS DATA
@@ -119,22 +124,6 @@ public class DataPointMessageBuilder {
         dataPointMsg.put("source", collectorName);
 
         // HEADER DATA        
-        // Map<String, Object> headerData = new HashMap<String, Object>();
-        // headerData.put("messageVersion", messageVersion);
-        // headerData.put("messageType", messageType);        
-
-        // // ISO 8601 Date Formatter
-        // TimeZone utcTZ = TimeZone.getTimeZone("UTC");
-        // DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm.SSS'Z'");
-        // dateFormatter.setTimeZone(utcTZ);
-
-        // long timestamp_ms = timestamp * 1000;
-        // headerData.put("indexTimestamp", dateFormatter.format(timestamp_ms));
-
-        // long sentTime = (new Date()).getTime();
-        // headerData.put("sentTimestamp", dateFormatter.format(sentTime));
-        // dataPointMsg.put("header", headerData);
-
         // ISO 8601 Date Formatter
         TimeZone utcTZ = TimeZone.getTimeZone("UTC");
         DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm.SSS'Z'");
@@ -146,10 +135,10 @@ public class DataPointMessageBuilder {
         dataPointMsg.put("_messageVersion", messageVersion);
         dataPointMsg.put("_messageType", messageType);
         dataPointMsg.put("_indexTimestamp", dateFormatter.format(timestamp_ms));
-        dataPointMsg.put("_sentTimestamp", dateFormatter.format(sentTime));        
+        dataPointMsg.put("_sentTimestamp", dateFormatter.format(sentTime));
 
         if (messageType == "zenoss_ts_data") {
-            float forwarderLagSeconds = (float)(sentTime - timestamp_ms) / 1000;
+            float forwarderLagSeconds = (float) (sentTime - timestamp_ms) / 1000;
             dataPointMsg.put("forwarderLagSeconds", forwarderLagSeconds);
         }
 
@@ -157,10 +146,14 @@ public class DataPointMessageBuilder {
 
         try {
             jsonStrRet = new ObjectMapper().writeValueAsString(dataPointMsg);
-        } catch (JsonProcessingException e) {
-            LOG.error("Failed on the conversion of the Map to string: \n" + e.getMessage());
+
+            if (getShowOpenTSDBData()) {
+                LOG.info("DataPoint Message is: " + jsonStrRet);
+            }
+        } catch (JsonProcessingException jsonEx) {
+            LOG.error("Failed on the conversion of the Map to string: \n" + jsonEx.getMessage());
         }
-        
+
         return jsonStrRet;
     }
 }
