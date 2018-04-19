@@ -69,7 +69,7 @@
         <dependency>
             <groupId>com.github.cascadeo</groupId>
             <artifactId>OpenTSDBDataPointBuilder</artifactId>
-            <version>master</version>
+            <version>0.0.1</version>
         </dependency>
 
         <dependency>
