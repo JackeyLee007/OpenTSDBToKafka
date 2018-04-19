@@ -51,6 +51,13 @@
         </plugins>
     </build>
 
+    <repositories>
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -58,7 +65,13 @@
             <version>3.8.1</version>
             <scope>test</scope>
         </dependency>
-    
+
+        <dependency>
+            <groupId>com.github.cascadeo</groupId>
+            <artifactId>OpenTSDBDataPointBuilder</artifactId>
+            <version>master</version>
+        </dependency>
+
         <dependency>
             <groupId>net.opentsdb</groupId>
             <artifactId>opentsdb</artifactId>
