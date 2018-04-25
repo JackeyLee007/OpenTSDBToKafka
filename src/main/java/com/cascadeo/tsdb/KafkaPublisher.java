@@ -2,7 +2,11 @@ package com.cascadeo.tsdb;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.stumbleupon.async.Deferred;
 
 import org.apache.kafka.clients.producer.Callback;
@@ -27,15 +31,18 @@ public class KafkaPublisher extends RTPublisher {
     private Properties kafkaConfigProps;
     private KafkaPluginConfig kafkaPluginConfig;
 
+    private LoadingCache<String, Integer> metricsLowCache;
+    private LoadingCache<String, Integer> metricsMediumCache;
+
     private static final Logger LOG = LoggerFactory.getLogger(KafkaPublisher.class.getName());
 
     public void initialize(final TSDB tsdb) {
         LOG.info("Initializing " + KafkaPublisher.class.getName());
 
-        // Load Plugin Configuration File here
         String kafkaConfFile = tsdb.getConfig().getString("tsd.plugin.kafkapublisher.conf");
         loadConfig(kafkaConfFile);
-        
+
+        initializeCache();
 
         kafkaConfigProps = new Properties();
         kafkaConfigProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPluginConfig.getBootstrapServers());
@@ -55,7 +62,7 @@ public class KafkaPublisher extends RTPublisher {
     }
 
     public String version() {
-        return "0.1.0";
+        return "0.1.1";
     }
 
     public void collectStats(final StatsCollector collector) {
@@ -92,11 +99,9 @@ public class KafkaPublisher extends RTPublisher {
             return;
         }
 
-        if (isBlackListed(metric)) {
+        if (filterMetric(metric, rrdPath)) {
             return;
         }
-
-        // Check frequency if we should send the metric
 
         String kafkaTopic = getKafkTopic(rrdPath);
         if (kafkaTopic.isEmpty()) {
@@ -119,12 +124,82 @@ public class KafkaPublisher extends RTPublisher {
         return kafkaPluginConfig.getKafkaTopic(rrdPath);
     }
 
-    public Boolean isBlackListed(String metric) {
-        return kafkaPluginConfig.isBlacklisted(metric);
+    public Boolean filterMetric(String metric, String rrdPath) {
+        Boolean filterMetric = false;
+
+        MetricFrequencyType metricFrequencyType = kafkaPluginConfig.getMetricFrequencyType(metric);
+
+        switch (metricFrequencyType) {
+        case METRIC_DEFAULT:
+            filterMetric = false;
+            break;
+        case METRIC_IGNORE:
+            LOG.debug("Blocking metric: " + metric);
+            filterMetric = true;
+            break;
+        case METRIC_LOW:
+            filterMetric = lowCacheFilter(rrdPath);
+            break;
+        case METRIC_MEDIUM:
+            filterMetric = mediumCacheFilter(rrdPath);
+            break;
+        default:
+            break;
+        }
+
+        return filterMetric;
+    }
+
+    private Boolean lowCacheFilter(String rrdPath) {
+        Boolean filterLowMetric = true;
+
+        if (metricsLowCache.getIfPresent(rrdPath) == null) {
+            metricsLowCache.put(rrdPath, 0);
+            filterLowMetric = false;
+        } else {
+            LOG.debug("Path is sent recently: " + rrdPath);
+        }
+
+        return filterLowMetric;
+    }
+
+    private Boolean mediumCacheFilter(String rrdPath) {
+        Boolean filterMediumMetric = true;
+
+        if (metricsMediumCache.getIfPresent(rrdPath) == null) {
+            metricsMediumCache.put(rrdPath, 0);
+            filterMediumMetric = false;
+        } else {
+            LOG.debug("Path is sent recently: " + rrdPath);
+        }
+
+        return filterMediumMetric;
     }
 
     public void loadConfig(String configFile) {
         kafkaPluginConfig = new KafkaPluginConfig(configFile);
+    }
+
+    public void initializeCache() {
+        // Create low and medium caches
+        metricsLowCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(kafkaPluginConfig.getMetricLowRate(), TimeUnit.SECONDS)
+                .build(new CacheLoader<String, Integer>() {
+                    @Override
+                    public Integer load(String path) throws Exception {
+                        return 0;
+                    }
+
+                });
+
+        metricsMediumCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(kafkaPluginConfig.getMetricMediumRate(), TimeUnit.SECONDS)
+                .build(new CacheLoader<String, Integer>() {
+                    @Override
+                    public Integer load(String path) throws Exception {
+                        return 0;
+                    }
+                });
     }
 
     private static class KafkaSendCallback implements Callback {
