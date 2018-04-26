@@ -2,6 +2,8 @@ package com.cascadeo.tsdb;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +24,8 @@ public class KafkaPluginConfig {
     private List<String> metricsLowList;
     private List<String> metricsMediumList;
     private List<String> metricsIgnoreList;
+    private Integer metricsLowRate = 0;
+    private Integer metricsMediumRate = 0;
 
     public KafkaPluginConfig(String configFile) {
         loadConfig(configFile);
@@ -39,25 +43,51 @@ public class KafkaPluginConfig {
 
             if (kafkaConfigMap.containsKey("bootstrapServers")) {
                 bootstrapServers = (List<String>) kafkaConfigMap.get("bootstrapServers");
+            } else {
+                bootstrapServers = new ArrayList<String>();
             }
 
             if (kafkaConfigMap.containsKey("kafkaTopics")) {
                 kafkaTopics = (Map<String, Object>) kafkaConfigMap.get("kafkaTopics");
+            } else {
+                kafkaTopics = new HashMap<String, Object>();
             }
 
-            if (kafkaConfigMap.containsKey("metricsBlackList")) {
-                Map<String, Object> metricsBlacklist = (Map<String, Object>) kafkaConfigMap.get("metricsBlackList");
+            if (kafkaConfigMap.containsKey("metricsFrequency")) {
+                Map<String, Object> metricsFrequencyMap = (Map<String, Object>) kafkaConfigMap.get("metricsFrequency");
 
-                if (metricsBlacklist.containsKey("metrics-low-list")) {
-                    metricsLowList = (List<String>) metricsBlacklist.get("metrics-low-list");
+                if (metricsFrequencyMap.containsKey("metrics-low-list")) {
+                    metricsLowList = (List<String>) metricsFrequencyMap.get("metrics-low-list");
+                } else {
+                    metricsLowList = new ArrayList<String>();
                 }
 
-                if (metricsBlacklist.containsKey("metrics-medium-list")) {
-                    metricsMediumList = (List<String>) metricsBlacklist.get("metrics-medium-list");
+                if (metricsFrequencyMap.containsKey("metrics-medium-list")) {
+                    metricsMediumList = (List<String>) metricsFrequencyMap.get("metrics-medium-list");
+                } else {
+                    metricsMediumList = new ArrayList<String>();
                 }
 
-                if (metricsBlacklist.containsKey("metrics-medium-list")) {
-                    metricsIgnoreList = (List<String>) metricsBlacklist.get("metrics-ignore-list");
+                if (metricsFrequencyMap.containsKey("metrics-ignore-list")) {
+                    metricsIgnoreList = (List<String>) metricsFrequencyMap.get("metrics-ignore-list");
+                } else {
+                    metricsIgnoreList = new ArrayList<String>();
+                }
+
+                if (metricsFrequencyMap.containsKey("metrics-low-rate")) {
+                    metricsLowRate = (Integer) metricsFrequencyMap.get("metrics-low-rate");
+                }
+
+                if (metricsLowRate <= 0) {
+                    metricsLowRate = 3600;
+                }
+
+                if (metricsFrequencyMap.containsKey("metrics-medium-rate")) {
+                    metricsMediumRate = (Integer) metricsFrequencyMap.get("metrics-medium-rate");
+                }
+
+                if (metricsMediumRate <= 0) {
+                    metricsMediumRate = 900;
                 }
             }
 
@@ -114,27 +144,24 @@ public class KafkaPluginConfig {
         return String.join(",", bootstrapServers);
     }
 
-    public Boolean isBlacklisted(String metric, String type) {
-        Boolean listed = false;
-        List<String> metricList;
+    public MetricFrequencyType getMetricFrequencyType(String metric) {
+        MetricFrequencyType metricFreqType = MetricFrequencyType.METRIC_DEFAULT;
 
-        if (type == "low") {
-            metricList = metricsLowList;
-        } else if (type == "medium") {
-            metricList = metricsMediumList;
-        } else {
-            metricList = metricsIgnoreList;
+        if (metricsLowList.contains(metric)) {
+            metricFreqType = MetricFrequencyType.METRIC_LOW;
+        } else if (metricsMediumList.contains(metric)) {
+            metricFreqType = MetricFrequencyType.METRIC_MEDIUM;
+        } else if (metricsIgnoreList.contains(metric)) {
+            metricFreqType = MetricFrequencyType.METRIC_IGNORE;
         }
-
-        if (metricList.contains(metric)) {
-            listed = true;
-        }
-
-        return listed;
+        return metricFreqType;
     }
 
-    public Boolean isBlacklisted(String metric) {
-        return isBlacklisted(metric, "");
+    public int getMetricLowRate() {
+        return metricsLowRate;
     }
 
+    public int getMetricMediumRate() {
+        return metricsMediumRate;
+    }
 }

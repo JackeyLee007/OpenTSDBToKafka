@@ -50,14 +50,18 @@ tsd.plugin.kafkapublisher.conf = plugin_configuration_file_path
         }
     },
     
-    "metricsBlackList" : {
+    "metricsFrequency" : {
+        "metrics-low-rate" : 3600,
+        "metrics-medium-rate" : 900,
         "metrics-low-list" : ["metric1", "metric2"],
         "metrics-medium-list" : ["metric3", "metric4"],
         "metrics-ignore-list" : ["metric5", "metric6", "metric7"]
     }
 }
 ```
-  
 
+## Note:
+_metricsFrequency.metrics-low-rate_ is in ___seconds___.
+_metricsFrequency.metrics-medium-rate_ is in ___seconds___.
 
 

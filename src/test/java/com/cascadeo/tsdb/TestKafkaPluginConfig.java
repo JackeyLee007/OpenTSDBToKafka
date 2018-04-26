@@ -46,43 +46,28 @@ public class TestKafkaPluginConfig {
     }
 
     @Test
-    public void testIsBlackListedTrue() {
-
-        // Low
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric1", "low"));
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric2", "low"));
-
-        // Medium
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric3", "medium"));
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric4", "medium"));
-
-        // Ignore List
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric5"));
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric6"));
-        assertTrue(kafkaPluginConfig.isBlacklisted("metric7"));
+    public void testGetMetricFrequencyLow() {
+        assertEquals(MetricFrequencyType.METRIC_LOW, kafkaPluginConfig.getMetricFrequencyType("metric1"));
+        assertEquals(MetricFrequencyType.METRIC_LOW, kafkaPluginConfig.getMetricFrequencyType("metric2"));
     }
 
     @Test
-    public void testIsBlackListedFalse() {
-
-        // Low
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric3", "low"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric4", "low"));
-
-        // Medium
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric1", "medium"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric2", "medium"));
-
-        // Ignore List
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric1"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric2"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric3"));
-
-        // Metric not on any of the list
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric8", "low"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric8", "medium"));
-        assertFalse(kafkaPluginConfig.isBlacklisted("metric8"));
-
+    public void testGetMetricFrequencyMedium() {
+        assertEquals(MetricFrequencyType.METRIC_MEDIUM, kafkaPluginConfig.getMetricFrequencyType("metric3"));
+        assertEquals(MetricFrequencyType.METRIC_MEDIUM, kafkaPluginConfig.getMetricFrequencyType("metric4"));
     }
-    
+
+    @Test
+    public void testGetMetricFrequencyIgnore() {
+        assertEquals(MetricFrequencyType.METRIC_IGNORE, kafkaPluginConfig.getMetricFrequencyType("metric5"));
+        assertEquals(MetricFrequencyType.METRIC_IGNORE, kafkaPluginConfig.getMetricFrequencyType("metric6"));
+        assertEquals(MetricFrequencyType.METRIC_IGNORE, kafkaPluginConfig.getMetricFrequencyType("metric7"));
+    }
+
+    @Test
+    public void testGetMetricFrequencyDefault() {
+        assertEquals(MetricFrequencyType.METRIC_DEFAULT, kafkaPluginConfig.getMetricFrequencyType("metric8"));
+        assertEquals(MetricFrequencyType.METRIC_DEFAULT, kafkaPluginConfig.getMetricFrequencyType("metric9"));
+    }
+
 }
