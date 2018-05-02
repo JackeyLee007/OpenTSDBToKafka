@@ -19,6 +19,7 @@ public class KafkaPluginConfig {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaPluginConfig.class.getName());
 
     private List<String> bootstrapServers;
+    private Map<String, Object> kafkaSecurity;
     private Map<String, Object> kafkaTopics;
 
     private List<String> metricsLowList;
@@ -45,6 +46,12 @@ public class KafkaPluginConfig {
                 bootstrapServers = (List<String>) kafkaConfigMap.get("bootstrapServers");
             } else {
                 bootstrapServers = new ArrayList<String>();
+            }
+
+            if (kafkaConfigMap.containsKey("security")) {
+                kafkaSecurity = (Map<String, Object>) kafkaConfigMap.get("security");
+            } else {
+                kafkaSecurity = new HashMap<String, Object>();
             }
 
             if (kafkaConfigMap.containsKey("kafkaTopics")) {
@@ -90,7 +97,6 @@ public class KafkaPluginConfig {
                     metricsMediumRate = 900;
                 }
             }
-
         } catch (JsonGenerationException jsonGEx) {
             LOG.error("Error occurred on JSON generation: " + jsonGEx.getMessage());
         } catch (JsonMappingException jsonMEx) {
@@ -100,6 +106,66 @@ public class KafkaPluginConfig {
         } catch (IOException ioEx) {
             LOG.error("IOException occurred: " + ioEx.getMessage());
         }
+    }
+
+    public String getSecurityProtocol() {
+        String securityProtocol = "";
+
+        if (kafkaSecurity.containsKey("protocol")) {
+            securityProtocol = (String) kafkaSecurity.get("protocol");
+        }
+
+        return securityProtocol;
+    }
+
+    public String getSecurityTrustStoreLocation() {
+        String securityTrustStoreLocation = "";
+
+        if (kafkaSecurity.containsKey("trustStoreLocation")) {
+            securityTrustStoreLocation = (String) kafkaSecurity.get("trustStoreLocation");
+        }
+
+        return securityTrustStoreLocation;
+    }
+
+    public String getSecurityTrustStorePassword() {
+        String securityTrustStorePassword = "";
+
+        if (kafkaSecurity.containsKey("trustStorePassword")) {
+            securityTrustStorePassword = (String) kafkaSecurity.get("trustStorePassword");
+        }
+
+        return securityTrustStorePassword;
+    }
+
+    public String getSecurityKeyStoreLocation() {
+        String securityKeyStoreLocation = "";
+
+        if (kafkaSecurity.containsKey("keyStoreLocation")) {
+            securityKeyStoreLocation = (String) kafkaSecurity.get("keyStoreLocation");
+        }
+
+        return securityKeyStoreLocation;
+    }
+
+    public String getSecurityKeyStorePassword() {
+        String securityKeyStorePassword = "";
+
+        if (kafkaSecurity.containsKey("keyStorePassword")) {
+            securityKeyStorePassword = (String) kafkaSecurity.get("keyStorePassword");
+        }
+
+        return securityKeyStorePassword;
+    }
+
+    public String getSecurityKeyPassword() {
+        String securityKeyPassword = "";
+
+        if (kafkaSecurity.containsKey("keyPassword")) {
+            securityKeyPassword = (String) kafkaSecurity.get("keyPassword");
+        }
+
+        return securityKeyPassword;
     }
 
     public String getDefaultTopic() {
@@ -116,14 +182,16 @@ public class KafkaPluginConfig {
     public String getKafkaTopic(String rrdPath) {
         String kafkaTopic = "";
 
-        // Map<String, Object> kafkaTopicMap = objectMapper.convertValue(kafkaTopics.get("topics"), Map.class);
+        // Map<String, Object> kafkaTopicMap =
+        // objectMapper.convertValue(kafkaTopics.get("topics"), Map.class);
         Map<String, Object> kafkaTopicMap = (Map<String, Object>) kafkaTopics.get("topics");
         for (String topic : kafkaTopicMap.keySet()) {
             if (!kafkaTopic.isEmpty()) {
                 break;
             }
 
-            // List<String> paths = objectMapper.convertValue(kafkaTopicMap.get(topic), List.class);
+            // List<String> paths = objectMapper.convertValue(kafkaTopicMap.get(topic),
+            // List.class);
             List<String> paths = (List<String>) kafkaTopicMap.get(topic);
             for (String path : paths) {
                 if (rrdPath.toLowerCase().contains(path.toLowerCase())) {

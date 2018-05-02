@@ -9,12 +9,14 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.stumbleupon.async.Deferred;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.config.SslConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,19 +43,8 @@ public class KafkaPublisher extends RTPublisher {
 
         String kafkaConfFile = tsdb.getConfig().getString("tsd.plugin.kafkapublisher.conf");
         loadConfig(kafkaConfFile);
-
         initializeCache();
-
-        kafkaConfigProps = new Properties();
-        kafkaConfigProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPluginConfig.getBootstrapServers());
-        kafkaConfigProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        kafkaConfigProps.put(ProducerConfig.RETRIES_CONFIG, 0);
-        kafkaConfigProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.StringSerializer");
-        kafkaConfigProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.StringSerializer");
-
-        producer = new KafkaProducer<String, String>(kafkaConfigProps);
+        intializeKafkaProducer();
     }
 
     public Deferred<Object> shutdown() {
@@ -118,6 +109,45 @@ public class KafkaPublisher extends RTPublisher {
         KafkaSendCallback kafkaSendCallback = new KafkaSendCallback();
         ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(kafkaTopic, dpMsgStr);
         producer.send(producerRecord, kafkaSendCallback);
+    }
+
+    public void intializeKafkaProducer() {
+        kafkaConfigProps = new Properties();
+
+        kafkaConfigProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPluginConfig.getBootstrapServers());
+        setKafkaSecurity(kafkaConfigProps);
+
+        kafkaConfigProps.put(ProducerConfig.ACKS_CONFIG, "all");
+        kafkaConfigProps.put(ProducerConfig.RETRIES_CONFIG, 0);
+        kafkaConfigProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringSerializer");
+        kafkaConfigProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringSerializer");
+
+        producer = new KafkaProducer<String, String>(kafkaConfigProps);
+    }
+
+    private void setKafkaSecurity(Properties kafkaProps) {
+        String protocol = kafkaPluginConfig.getSecurityProtocol();
+        String trustStoreLocation = kafkaPluginConfig.getSecurityTrustStoreLocation();
+        String trustStorePassword = kafkaPluginConfig.getSecurityTrustStorePassword();
+        String keyStoreLocation = kafkaPluginConfig.getSecurityKeyStoreLocation();
+        String keyStorePassword = kafkaPluginConfig.getSecurityKeyStorePassword();
+        String keyPassword = kafkaPluginConfig.getSecurityKeyPassword();
+
+        if ((protocol.equalsIgnoreCase("ssl")) && !trustStoreLocation.isEmpty() && !trustStorePassword.isEmpty()
+                && !keyStoreLocation.isEmpty() && !keyStorePassword.isEmpty() && !keyPassword.isEmpty()) {
+            LOG.info("SSL is enabled");
+            kafkaProps.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");
+            kafkaProps.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStoreLocation);
+            kafkaProps.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trustStorePassword);
+
+            kafkaProps.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, keyStoreLocation);
+            kafkaProps.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, keyStorePassword);
+            kafkaProps.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, keyPassword);
+        } else {
+            LOG.info("SSL is disabled");
+        }
     }
 
     public String getKafkTopic(String rrdPath) {

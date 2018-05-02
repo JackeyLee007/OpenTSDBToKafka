@@ -41,6 +41,15 @@ tsd.plugin.kafkapublisher.conf = plugin_configuration_file_path
         "kafkaServer3:9092"
     ],
 
+    "security" : {
+        "protocol" : "ssl",
+        "trustStoreLocation" : "myTrustStoreLocation",
+        "trustStorePassword" : "myTrustStorePassword",
+        "keyStoreLocation" : "myKeyStoreLocation",
+        "keyStorePassword" : "myKeyStorePassword",
+        "keyPassword" : "myKeyPassword"
+    },
+
     "kafkaTopics" : {
         "default" : "defaultTopic",
         "topics" : {
