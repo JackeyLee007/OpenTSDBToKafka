@@ -48,7 +48,12 @@ public class KafkaPublisher extends RTPublisher {
     }
 
     public Deferred<Object> shutdown() {
-        producer.close();
+        if (producer != null) {
+            producer.close();
+        } else {
+            LOG.error("Unable to close a null producer");
+        }
+
         return Deferred.fromResult(null);
     }
 
@@ -83,32 +88,38 @@ public class KafkaPublisher extends RTPublisher {
     public void publishDataPointHelper(final String metric, final long timestamp, final Number value,
             final Map<String, String> tags, final byte[] tsuid) {
 
-        DataPointMessageBuilder dpMsgBuilder = new DataPointMessageBuilder(metric, timestamp, value, tags, tsuid);
+        if (producer != null) {
+            DataPointMessageBuilder dpMsgBuilder = new DataPointMessageBuilder(metric, timestamp, value, tags, tsuid);
 
-        String rrdPath = dpMsgBuilder.getRRDPath();
-        if (rrdPath.isEmpty()) {
-            return;
+            String rrdPath = dpMsgBuilder.getRRDPath();
+            if (rrdPath.isEmpty()) {
+                return;
+            }
+
+            if (filterMetric(metric, rrdPath)) {
+                return;
+            }
+
+            String kafkaTopic = getKafkTopic(rrdPath);
+            if (kafkaTopic.isEmpty()) {
+                return;
+            }
+
+            // Sending
+            dpMsgBuilder.setCollector("zenperfdataforwarder");
+            dpMsgBuilder.setMessageType("zenoss_ts_data");
+            dpMsgBuilder.setMessageVersion("2018041200");
+
+            String dpMsgStr = dpMsgBuilder.generate();
+
+            KafkaSendCallback kafkaSendCallback = new KafkaSendCallback();
+            ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(kafkaTopic, dpMsgStr);
+            producer.send(producerRecord, kafkaSendCallback);
+
+        } else {
+            LOG.error("Unable to publish message as the producer is null");
         }
 
-        if (filterMetric(metric, rrdPath)) {
-            return;
-        }
-
-        String kafkaTopic = getKafkTopic(rrdPath);
-        if (kafkaTopic.isEmpty()) {
-            return;
-        }
-
-        // Sending
-        dpMsgBuilder.setCollector("zenperfdataforwarder");
-        dpMsgBuilder.setMessageType("zenoss_ts_data");
-        dpMsgBuilder.setMessageVersion("2018041200");
-
-        String dpMsgStr = dpMsgBuilder.generate();
-
-        KafkaSendCallback kafkaSendCallback = new KafkaSendCallback();
-        ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(kafkaTopic, dpMsgStr);
-        producer.send(producerRecord, kafkaSendCallback);
     }
 
     public void intializeKafkaProducer() {
@@ -125,6 +136,12 @@ public class KafkaPublisher extends RTPublisher {
                 "org.apache.kafka.common.serialization.StringSerializer");
 
         producer = new KafkaProducer<String, String>(kafkaConfigProps);
+
+        if (producer != null) {
+            LOG.info("Producer is now available");
+        } else {
+            LOG.error("Unable to create producer");
+        }
     }
 
     private void setKafkaSecurity(Properties kafkaProps) {
@@ -240,7 +257,7 @@ public class KafkaPublisher extends RTPublisher {
             } else {
                 String message = String.format("sent message to topic:%s partition:%s  offset:%s",
                         recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset());
-                LOG.info(message);
+                LOG.debug(message);
             }
         }
     }

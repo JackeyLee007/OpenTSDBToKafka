@@ -182,16 +182,12 @@ public class KafkaPluginConfig {
     public String getKafkaTopic(String rrdPath) {
         String kafkaTopic = "";
 
-        // Map<String, Object> kafkaTopicMap =
-        // objectMapper.convertValue(kafkaTopics.get("topics"), Map.class);
         Map<String, Object> kafkaTopicMap = (Map<String, Object>) kafkaTopics.get("topics");
         for (String topic : kafkaTopicMap.keySet()) {
             if (!kafkaTopic.isEmpty()) {
                 break;
             }
 
-            // List<String> paths = objectMapper.convertValue(kafkaTopicMap.get(topic),
-            // List.class);
             List<String> paths = (List<String>) kafkaTopicMap.get(topic);
             for (String path : paths) {
                 if (rrdPath.toLowerCase().contains(path.toLowerCase())) {
