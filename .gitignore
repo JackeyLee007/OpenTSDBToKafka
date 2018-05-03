@@ -4,3 +4,4 @@
 .settings
 .vscode/
 target/
+src/test/resources/com/cascadeo/tsdb/internal

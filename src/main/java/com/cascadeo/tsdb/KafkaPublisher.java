@@ -9,12 +9,14 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.stumbleupon.async.Deferred;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.config.SslConfigs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,23 +43,17 @@ public class KafkaPublisher extends RTPublisher {
 
         String kafkaConfFile = tsdb.getConfig().getString("tsd.plugin.kafkapublisher.conf");
         loadConfig(kafkaConfFile);
-
         initializeCache();
-
-        kafkaConfigProps = new Properties();
-        kafkaConfigProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPluginConfig.getBootstrapServers());
-        kafkaConfigProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        kafkaConfigProps.put(ProducerConfig.RETRIES_CONFIG, 0);
-        kafkaConfigProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.StringSerializer");
-        kafkaConfigProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                "org.apache.kafka.common.serialization.StringSerializer");
-
-        producer = new KafkaProducer<String, String>(kafkaConfigProps);
+        intializeKafkaProducer();
     }
 
     public Deferred<Object> shutdown() {
-        producer.close();
+        if (producer != null) {
+            producer.close();
+        } else {
+            LOG.error("Unable to close a null producer");
+        }
+
         return Deferred.fromResult(null);
     }
 
@@ -92,32 +88,83 @@ public class KafkaPublisher extends RTPublisher {
     public void publishDataPointHelper(final String metric, final long timestamp, final Number value,
             final Map<String, String> tags, final byte[] tsuid) {
 
-        DataPointMessageBuilder dpMsgBuilder = new DataPointMessageBuilder(metric, timestamp, value, tags, tsuid);
+        if (producer != null) {
+            DataPointMessageBuilder dpMsgBuilder = new DataPointMessageBuilder(metric, timestamp, value, tags, tsuid);
 
-        String rrdPath = dpMsgBuilder.getRRDPath();
-        if (rrdPath.isEmpty()) {
-            return;
+            String rrdPath = dpMsgBuilder.getRRDPath();
+            if (rrdPath.isEmpty()) {
+                return;
+            }
+
+            if (filterMetric(metric, rrdPath)) {
+                return;
+            }
+
+            String kafkaTopic = getKafkTopic(rrdPath);
+            if (kafkaTopic.isEmpty()) {
+                return;
+            }
+
+            // Sending
+            dpMsgBuilder.setCollector("zenperfdataforwarder");
+            dpMsgBuilder.setMessageType("zenoss_ts_data");
+            dpMsgBuilder.setMessageVersion("2018041200");
+
+            String dpMsgStr = dpMsgBuilder.generate();
+
+            KafkaSendCallback kafkaSendCallback = new KafkaSendCallback();
+            ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(kafkaTopic, dpMsgStr);
+            producer.send(producerRecord, kafkaSendCallback);
+
+        } else {
+            LOG.error("Unable to publish message as the producer is null");
         }
 
-        if (filterMetric(metric, rrdPath)) {
-            return;
+    }
+
+    public void intializeKafkaProducer() {
+        kafkaConfigProps = new Properties();
+
+        kafkaConfigProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPluginConfig.getBootstrapServers());
+        setKafkaSecurity(kafkaConfigProps);
+
+        kafkaConfigProps.put(ProducerConfig.ACKS_CONFIG, "all");
+        kafkaConfigProps.put(ProducerConfig.RETRIES_CONFIG, 0);
+        kafkaConfigProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringSerializer");
+        kafkaConfigProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                "org.apache.kafka.common.serialization.StringSerializer");
+
+        producer = new KafkaProducer<String, String>(kafkaConfigProps);
+
+        if (producer != null) {
+            LOG.info("Producer is now available");
+        } else {
+            LOG.error("Unable to create producer");
         }
+    }
 
-        String kafkaTopic = getKafkTopic(rrdPath);
-        if (kafkaTopic.isEmpty()) {
-            return;
+    private void setKafkaSecurity(Properties kafkaProps) {
+        String protocol = kafkaPluginConfig.getSecurityProtocol();
+        String trustStoreLocation = kafkaPluginConfig.getSecurityTrustStoreLocation();
+        String trustStorePassword = kafkaPluginConfig.getSecurityTrustStorePassword();
+        String keyStoreLocation = kafkaPluginConfig.getSecurityKeyStoreLocation();
+        String keyStorePassword = kafkaPluginConfig.getSecurityKeyStorePassword();
+        String keyPassword = kafkaPluginConfig.getSecurityKeyPassword();
+
+        if ((protocol.equalsIgnoreCase("ssl")) && !trustStoreLocation.isEmpty() && !trustStorePassword.isEmpty()
+                && !keyStoreLocation.isEmpty() && !keyStorePassword.isEmpty() && !keyPassword.isEmpty()) {
+            LOG.info("SSL is enabled");
+            kafkaProps.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL");
+            kafkaProps.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStoreLocation);
+            kafkaProps.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trustStorePassword);
+
+            kafkaProps.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, keyStoreLocation);
+            kafkaProps.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, keyStorePassword);
+            kafkaProps.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, keyPassword);
+        } else {
+            LOG.info("SSL is disabled");
         }
-
-        // Sending
-        dpMsgBuilder.setCollector("zenperfdataforwarder");
-        dpMsgBuilder.setMessageType("zenoss_ts_data");
-        dpMsgBuilder.setMessageVersion("2018041200");
-
-        String dpMsgStr = dpMsgBuilder.generate();
-
-        KafkaSendCallback kafkaSendCallback = new KafkaSendCallback();
-        ProducerRecord<String, String> producerRecord = new ProducerRecord<String, String>(kafkaTopic, dpMsgStr);
-        producer.send(producerRecord, kafkaSendCallback);
     }
 
     public String getKafkTopic(String rrdPath) {
@@ -210,7 +257,7 @@ public class KafkaPublisher extends RTPublisher {
             } else {
                 String message = String.format("sent message to topic:%s partition:%s  offset:%s",
                         recordMetadata.topic(), recordMetadata.partition(), recordMetadata.offset());
-                LOG.info(message);
+                LOG.debug(message);
             }
         }
     }

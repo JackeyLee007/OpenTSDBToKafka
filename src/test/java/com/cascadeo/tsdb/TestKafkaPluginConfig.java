@@ -70,4 +70,18 @@ public class TestKafkaPluginConfig {
         assertEquals(MetricFrequencyType.METRIC_DEFAULT, kafkaPluginConfig.getMetricFrequencyType("metric9"));
     }
 
+    @Test
+    public void testGetSecurityProtocol() {
+        assertEquals("ssl", kafkaPluginConfig.getSecurityProtocol());
+    }
+
+    @Test
+    public void testSecurityConfiguration() {
+        assertEquals("myTrustStoreLocation", kafkaPluginConfig.getSecurityTrustStoreLocation());
+        assertEquals("myTrustStorePassword", kafkaPluginConfig.getSecurityTrustStorePassword());
+        assertEquals("myKeyStoreLocation", kafkaPluginConfig.getSecurityKeyStoreLocation());
+        assertEquals("myKeyStorePassword", kafkaPluginConfig.getSecurityKeyStorePassword());
+        assertEquals("myKeyPassword", kafkaPluginConfig.getSecurityKeyPassword());
+    }
+    
 }
