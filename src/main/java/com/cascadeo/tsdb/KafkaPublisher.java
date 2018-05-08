@@ -32,6 +32,7 @@ public class KafkaPublisher extends RTPublisher {
     private Producer<String, String> producer;
     private Properties kafkaConfigProps;
     private KafkaPluginConfig kafkaPluginConfig;
+    private String sourceHostname = "";
 
     private LoadingCache<String, Integer> metricsLowCache;
     private LoadingCache<String, Integer> metricsMediumCache;
@@ -45,6 +46,8 @@ public class KafkaPublisher extends RTPublisher {
         loadConfig(kafkaConfFile);
         initializeCache();
         intializeKafkaProducer();
+
+        sourceHostname = tsdb.getConfig().getString("tsd.plugin.kafkapublisher.source");
     }
 
     public Deferred<Object> shutdown() {
@@ -109,6 +112,7 @@ public class KafkaPublisher extends RTPublisher {
             dpMsgBuilder.setCollector("zenperfdataforwarder");
             dpMsgBuilder.setMessageType("zenoss_ts_data");
             dpMsgBuilder.setMessageVersion("2018041200");
+            dpMsgBuilder.setHostname(sourceHostname);
 
             String dpMsgStr = dpMsgBuilder.generate();
 

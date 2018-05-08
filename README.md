@@ -30,6 +30,7 @@ tsd.core.plugin_path = your_plugin_path
 tsd.rtpublisher.enable = True  
 tsd.rtpublisher.plugin = com.cascadeo.tsdb.KafkaPublisher
 tsd.plugin.kafkapublisher.conf = plugin_configuration_file_path
+tsd.plugin.kafkapublisher.source = source_hostname
 ```
 
 # Sample Plugin Configuration File
@@ -70,7 +71,7 @@ tsd.plugin.kafkapublisher.conf = plugin_configuration_file_path
 ```
 
 ## Note:
-_metricsFrequency.metrics-low-rate_ is in ___seconds___.
-_metricsFrequency.metrics-medium-rate_ is in ___seconds___.
+* _metricsFrequency.metrics-low-rate_ is in ___seconds___.
+* _metricsFrequency.metrics-medium-rate_ is in ___seconds___.
 
 
